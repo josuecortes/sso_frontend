@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { PatternFormat } from 'react-number-format';
+import { cn } from '@/lib/utils';
 
 interface Role {
   id: number;
@@ -49,6 +50,10 @@ interface ApiResponse {
   user: UserProfile;
 }
 
+interface ValidationErrors {
+  [key: string]: string[];
+}
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
@@ -71,6 +76,7 @@ export default function ProfilePage() {
     new_password_confirmation: '',
   });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<ValidationErrors>({});
 
   useEffect(() => {
     if (user) {
@@ -116,6 +122,8 @@ export default function ProfilePage() {
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrors({}); // Limpa erros anteriores
+
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('Token não encontrado');
@@ -137,15 +145,50 @@ export default function ProfilePage() {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Falha ao atualizar perfil');
+        if (response.status === 422) {
+          // Trata erros de validação
+          const validationErrors: ValidationErrors = {};
+          
+          // Converte os erros do backend para nosso formato
+          if (Array.isArray(data.errors)) {
+            data.errors.forEach((error: string) => {
+              // Verifica erro de campo em branco
+              const blankMatch = error.match(/(.*?) can't be blank/);
+              // Verifica erro de campo já utilizado
+              const takenMatch = error.match(/(.*?) has already been taken/);
+              
+              if (blankMatch) {
+                const field = blankMatch[1].toLowerCase();
+                validationErrors[field] = [`${blankMatch[1]} é obrigatório`];
+              } else if (takenMatch) {
+                const field = takenMatch[1].toLowerCase();
+                validationErrors[field] = [`${takenMatch[1]} já está em uso`];
+              } else {
+                // Outros tipos de erros
+                if (!validationErrors.general) {
+                  validationErrors.general = [];
+                }
+                validationErrors.general.push(error);
+              }
+            });
+          }
+          
+          setErrors(validationErrors);
+          toast.error('Por favor, corrija os erros no formulário');
+        } else {
+          throw new Error(data.message || 'Falha ao atualizar perfil');
+        }
+      } else {
+        toast.success('Perfil atualizado com sucesso!');
+        // Atualiza o perfil com os dados mais recentes
+        await fetchProfile();
       }
-      
-      toast.success('Perfil atualizado com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
-      toast.error('Erro ao atualizar perfil');
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar perfil');
     } finally {
       setLoading(false);
     }
@@ -203,7 +246,13 @@ export default function ProfilePage() {
                   id="name"
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  className={errors.name ? 'border-red-500' : ''}
                 />
+                {errors.name?.map((error, index) => (
+                  <p key={index} className="text-sm text-red-500 mt-1">
+                    {error}
+                  </p>
+                ))}
               </div>
               <div>
                 <Label htmlFor="email">E-mail</Label>
@@ -217,11 +266,24 @@ export default function ProfilePage() {
               </div>
               <div>
                 <Label htmlFor="cpf">CPF</Label>
-                <Input
+                <PatternFormat
                   id="cpf"
-                  value={profile.cpf}
-                  onChange={(e) => setProfile({ ...profile, cpf: e.target.value })}
+                  format="###.###.###-##"
+                  value={profile.cpf || ''}
+                  onValueChange={(values) => {
+                    setProfile({ ...profile, cpf: values.value })
+                  }}
+                  className={cn(
+                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    errors.cpf && "border-red-500"
+                  )}
+                  placeholder="000.000.000-00"
                 />
+                {errors.cpf?.map((error, index) => (
+                  <p key={index} className="text-sm text-red-500 mt-1">
+                    {error}
+                  </p>
+                ))}
               </div>
 
               <div>
@@ -231,33 +293,57 @@ export default function ProfilePage() {
                   type="date"
                   value={profile.birth_date || ''}
                   onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
+                  className={errors.birth_date ? 'border-red-500' : ''}
                 />
+                {errors.birth_date?.map((error, index) => (
+                  <p key={index} className="text-sm text-red-500 mt-1">
+                    {error}
+                  </p>
+                ))}
               </div>
 
               <div>
                 <Label htmlFor="phone">Telefone</Label>
                 <PatternFormat
+                  id="phone"
                   format="(##) #####-####"
                   value={profile.phone || ''}
                   onValueChange={(values) => {
                     setProfile({ ...profile, phone: values.value })
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={cn(
+                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    errors.phone && "border-red-500"
+                  )}
                   placeholder="(99) 99999-9999"
                 />
+                {errors.phone?.map((error, index) => (
+                  <p key={index} className="text-sm text-red-500 mt-1">
+                    {error}
+                  </p>
+                ))}
               </div>
 
               <div>
                 <Label htmlFor="whatsapp">WhatsApp</Label>
                 <PatternFormat
+                  id="whatsapp"
                   format="(##) #####-####"
                   value={profile.whatsapp || ''}
                   onValueChange={(values) => {
                     setProfile({ ...profile, whatsapp: values.value })
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={cn(
+                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    errors.whatsapp && "border-red-500"
+                  )}
                   placeholder="(99) 99999-9999"
                 />
+                {errors.whatsapp?.map((error, index) => (
+                  <p key={index} className="text-sm text-red-500 mt-1">
+                    {error}
+                  </p>
+                ))}
               </div>
 
               <div>
@@ -294,6 +380,12 @@ export default function ProfilePage() {
                   ))}
                 </div>
               </div>
+
+              {errors.general?.map((error, index) => (
+                <p key={index} className="text-sm text-red-500">
+                  {error}
+                </p>
+              ))}
 
               <Button type="submit" disabled={loading}>
                 {loading ? 'Salvando...' : 'Salvar Alterações'}
