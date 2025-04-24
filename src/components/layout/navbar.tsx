@@ -4,9 +4,21 @@ import { useAuth } from '@/providers/auth-provider'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { Menu } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-export function Navbar() {
+interface NavbarProps {
+  onMenuClick?: () => void
+}
+
+export function Navbar({ onMenuClick }: NavbarProps) {
   const { user, logout } = useAuth()
+  const router = useRouter()
+
+  const handleProfileClick = () => {
+    router.push('/dashboard/profile')
+  }
 
   // Pega as iniciais do email para usar como fallback do avatar
   const getInitials = (email: string) => {
@@ -14,14 +26,27 @@ export function Navbar() {
   }
 
   return (
-    <header className="h-16 bg-white border-b px-6 flex items-center justify-end">
+    <header className="h-16 bg-background border-b px-4 lg:px-6 flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-6 w-6" />
+          <span className="sr-only">Toggle menu</span>
+        </Button>
+        <ThemeToggle />
+      </div>
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
-            className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-50"
+            className="flex items-center gap-2 px-2 lg:px-3 py-2 rounded-full hover:bg-accent"
           >
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-foreground hidden sm:inline">
               {user?.email}
             </span>
             <Avatar className="h-8 w-8">
@@ -33,7 +58,7 @@ export function Navbar() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+          <DropdownMenuItem onClick={handleProfileClick}>
             Perfil
           </DropdownMenuItem>
           <DropdownMenuItem onClick={logout}>

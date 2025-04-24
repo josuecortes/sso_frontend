@@ -2,13 +2,14 @@
 
 import { useAuth } from '@/providers/auth-provider'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Navbar } from '@/components/layout/navbar'
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
     // Se não estiver carregando e não tiver token ou usuário, redireciona para o login
@@ -32,10 +33,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Navbar />
-        <main className="p-6">{children}</main>
+      {/* Overlay para fechar o menu em dispositivos móveis */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Sidebar com animação */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition duration-200 ease-in-out ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <Sidebar onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <main className="flex-1 p-4 lg:p-6 overflow-x-hidden">
+          {children}
+        </main>
       </div>
     </div>
   )
