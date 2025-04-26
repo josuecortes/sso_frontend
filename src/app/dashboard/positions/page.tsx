@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-interface Role {
+interface Position {
   id: number;
   name: string;
   description: string;
@@ -32,17 +32,17 @@ interface ValidationErrors {
   [key: string]: string[];
 }
 
-interface RoleFormData {
+interface PositionFormData {
   name: string;
   description: string;
 }
 
-export default function RolesPage() {
-  const [roles, setRoles] = useState<Role[]>([]);
+export default function PositionsPage() {
+  const [positions, setPositions] = useState<Position[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<RoleFormData>({
+  const [selectedPositionId, setSelectedPositionId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<PositionFormData>({
     name: '',
     description: '',
   });
@@ -50,21 +50,21 @@ export default function RolesPage() {
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   useEffect(() => {
-    fetchRoles();
+    fetchPositions();
   }, []);
 
-  const fetchRoles = async () => {
+  const fetchPositions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/roles`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/positions`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
   
-      if (!response.ok) throw new Error('Erro ao buscar roles');
+      if (!response.ok) throw new Error('Erro ao buscar positions');
       const data = await response.json();
-      setRoles(data.roles);
+      setPositions(data);
     } catch (error) {
-      toast.error('Erro ao carregar roles');
+      toast.error('Erro ao carregar positions');
     }
   };
 
@@ -74,16 +74,16 @@ export default function RolesPage() {
       description: ''
     });
     setErrors({});
-    setSelectedRoleId(null);
+    setSelectedPositionId(null);
   };
 
-  const handleOpenModal = (role?: Role) => {
-    if (role) {
+  const handleOpenModal = (position?: Position) => {
+    if (position) {
       setFormData({
-        name: role.name,
-        description: role.description
+        name: position.name,
+        description: position.description
       });
-      setSelectedRoleId(role.id);
+      setSelectedPositionId(position.id);
     } else {
       resetForm();
     }
@@ -102,10 +102,10 @@ export default function RolesPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const method = selectedRoleId ? 'PATCH' : 'POST';
-      const url = selectedRoleId
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1/roles/${selectedRoleId}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/v1/roles`;
+      const method = selectedPositionId ? 'PATCH' : 'POST';
+      const url = selectedPositionId
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1/positions/${selectedPositionId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/v1/positions`;
 
       const response = await fetch(url, {
         method,
@@ -113,7 +113,7 @@ export default function RolesPage() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ role: formData }),
+        body: JSON.stringify({ position: formData }),
       });
 
       const data = await response.json();
@@ -134,12 +134,12 @@ export default function RolesPage() {
           setLoading(false);
           return;
         }
-        throw new Error(data.message || 'Erro ao salvar role');
+        throw new Error(data.message || 'Erro ao salvar position');
       }
 
-      toast.success(selectedRoleId ? 'Permissão atualizada com sucesso' : 'Permissão criada com sucesso');
+      toast.success(selectedPositionId ? 'Cargo atualizado com sucesso' : 'Cargo criado com sucesso');
       handleCloseModal();
-      fetchRoles();
+      fetchPositions();
     } catch (error) {
       toast.error('Erro ao salvar permissão');
     } finally {
@@ -148,19 +148,19 @@ export default function RolesPage() {
   };
 
   const handleDelete = async () => {
-    if (!selectedRoleId) return;
+    if (!selectedPositionId) return;
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/roles/${selectedRoleId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/positions/${selectedPositionId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error('Erro ao excluir permissão');
-      toast.success('Permissão excluída com sucesso');
+      toast.success('Cargo excluída com sucesso');
       setIsDeleteDialogOpen(false);
-      fetchRoles();
+      fetchPositions();
     } catch (error) {
       toast.error('Erro ao excluir permissão');
     }
@@ -171,13 +171,13 @@ export default function RolesPage() {
       <div className="border-b">
         <div className="h-16 flex items-center justify-between mx-auto pb-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Shield className="h-10 w-10 text-indigo-500 flex-shrink-0" />
+            <Briefcase className="h-10 w-10 text-indigo-500 flex-shrink-0" />
             <div className="min-w-0">
               <h1 className="text-lg lg:text-xl font-semibold truncate">
-                Gerenciamento de Permissões
+                Gerenciamento de Cargos
               </h1>
               <p className="text-sm text-muted-foreground hidden sm:block">
-                Gerencie as permissões do sistema
+                Gerencie os cargos do sistema
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function RolesPage() {
             size="sm"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nova Permissão</span>
+            <span className="hidden sm:inline">Novo Cargo</span>
             <span className="sm:hidden">Novo</span>
           </Button>
         </div>
@@ -208,24 +208,24 @@ export default function RolesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {roles.map((role) => (
-                  <TableRow key={role.id}>
-                    <TableCell className="font-medium">{role.name}</TableCell>
+                {positions.map((position) => (
+                  <TableRow key={position.id}>
+                    <TableCell className="font-medium">{position.name}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {role.description || '-'}
+                      {position.description || '-'}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(role.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(position.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(role.updated_at).toLocaleDateString('pt-BR')}
+                      {new Date(position.updated_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell className="text-right p-2">
                       <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleOpenModal(role)}
+                          onClick={() => handleOpenModal(position)}
                           className="h-8 w-8 p-0"
                         >
                           <Pencil className="h-4 w-4" />
@@ -235,7 +235,7 @@ export default function RolesPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setSelectedRoleId(role.id);
+                            setSelectedPositionId(position.id);
                             setIsDeleteDialogOpen(true);
                           }}
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
@@ -258,8 +258,8 @@ export default function RolesPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-indigo-500" />
-              {selectedRoleId ? 'Editar Permissão' : 'Nova Permissão'}
+              <Briefcase className="h-5 w-5 text-indigo-500" />
+              {selectedPositionId ? 'Editar Cargo' : 'Novo Cargo'}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -299,7 +299,7 @@ export default function RolesPage() {
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Processando...
                   </div>
-                ) : selectedRoleId ? (
+                ) : selectedPositionId ? (
                   'Atualizar'
                 ) : (
                   'Criar'

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { PatternFormat } from 'react-number-format';
 import { cn } from '@/lib/utils';
+import { User } from 'lucide-react';
 
 interface Role {
   id: number;
@@ -55,7 +56,7 @@ interface ValidationErrors {
 }
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
     id: 0,
     name: '',
@@ -96,12 +97,32 @@ export default function ProfilePage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        // Tenta extrair JSON, se falhar, trata como sessão expirada
+        let error;
+        try {
+          error = await response.json();
+        } catch (e) {
+          toast.error('Sessão expirada. Faça login novamente.');
+          logout();
+          return;
+        }
+        // Se for erro de autenticação, também desloga
+        if (response.status === 401 || response.status === 403) {
+          toast.error('Sessão expirada. Faça login novamente.');
+          logout();
+          return;
+        }
         throw new Error(error.message || 'Falha ao carregar perfil');
       }
 
-      const data: ApiResponse = await response.json();
-      console.log('Dados do perfil:', data); // Log para debug
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        logout();
+        return;
+      }
       setProfile({
         ...data.user,
         name: data.user.name || '',
@@ -230,209 +251,226 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl">
-      <h1 className="text-xl lg:text-2xl font-bold mb-6">Perfil do Usuário</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        <Card className="order-1">
-          <CardHeader>
-            <CardTitle className="text-lg lg:text-xl">Informações Pessoais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleProfileUpdate} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nome</Label>
-                <Input
-                  id="name"
-                  value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  className={errors.name ? 'border-red-500' : ''}
-                />
-                {errors.name?.map((error, index) => (
-                  <p key={index} className="text-sm text-red-500 mt-1">
-                    {error}
-                  </p>
-                ))}
-              </div>
-              <div>
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  disabled
-                  className="bg-muted text-muted-foreground"
-                />
-              </div>
-              <div>
-                <Label htmlFor="cpf">CPF</Label>
-                <PatternFormat
-                  id="cpf"
-                  format="###.###.###-##"
-                  value={profile.cpf || ''}
-                  onValueChange={(values) => {
-                    setProfile({ ...profile, cpf: values.value })
-                  }}
-                  className={cn(
-                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                    errors.cpf && "border-red-500"
-                  )}
-                  placeholder="000.000.000-00"
-                />
-                {errors.cpf?.map((error, index) => (
-                  <p key={index} className="text-sm text-red-500 mt-1">
-                    {error}
-                  </p>
-                ))}
-              </div>
+    <div className="h-full flex flex-col pr-4 pl-4">
+      <div className="border-b">
+        <div className="h-16 flex items-center justify-between mx-auto pb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <User className="h-10 w-10 text-indigo-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-lg lg:text-xl font-semibold truncate">
+                Perfil do Usuário
+              </h1>
+              <p className="text-sm text-muted-foreground hidden sm:block">
+                Gerencie suas informações pessoais
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <div>
-                <Label htmlFor="birth_date">Data de Nascimento</Label>
-                <Input
-                  id="birth_date"
-                  type="date"
-                  value={profile.birth_date || ''}
-                  onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
-                  className={errors.birth_date ? 'border-red-500' : ''}
-                />
-                {errors.birth_date?.map((error, index) => (
-                  <p key={index} className="text-sm text-red-500 mt-1">
-                    {error}
-                  </p>
-                ))}
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Telefone</Label>
-                <PatternFormat
-                  id="phone"
-                  format="(##) #####-####"
-                  value={profile.phone || ''}
-                  onValueChange={(values) => {
-                    setProfile({ ...profile, phone: values.value })
-                  }}
-                  className={cn(
-                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                    errors.phone && "border-red-500"
-                  )}
-                  placeholder="(99) 99999-9999"
-                />
-                {errors.phone?.map((error, index) => (
-                  <p key={index} className="text-sm text-red-500 mt-1">
-                    {error}
-                  </p>
-                ))}
-              </div>
-
-              <div>
-                <Label htmlFor="whatsapp">WhatsApp</Label>
-                <PatternFormat
-                  id="whatsapp"
-                  format="(##) #####-####"
-                  value={profile.whatsapp || ''}
-                  onValueChange={(values) => {
-                    setProfile({ ...profile, whatsapp: values.value })
-                  }}
-                  className={cn(
-                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                    errors.whatsapp && "border-red-500"
-                  )}
-                  placeholder="(99) 99999-9999"
-                />
-                {errors.whatsapp?.map((error, index) => (
-                  <p key={index} className="text-sm text-red-500 mt-1">
-                    {error}
-                  </p>
-                ))}
-              </div>
-
-              <div>
-                <Label>Status</Label>
-                <Input
-                  value={profile.active ? 'Ativo' : 'Inativo'}
-                  disabled
-                  className="bg-muted text-muted-foreground"
-                />
-              </div>
-
-              <div>
-                <Label>Funções Ativas</Label>
-                <div className="mt-2 space-y-1">
-                  {profile.active_roles.map((role) => (
-                    <div key={role.id} className="text-sm text-foreground">
-                      {role.name}
-                    </div>
+      {/* Conteúdo principal - Ajustado padding para mobile */}
+      <div className="flex-1 pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <Card className="order-1">
+            <CardHeader>
+              <CardTitle className="text-lg lg:text-xl">Informações Pessoais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProfileUpdate} className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Nome</Label>
+                  <Input
+                    id="name"
+                    value={profile.name}
+                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                    className={errors.name ? 'border-red-500' : ''}
+                  />
+                  {errors.name?.map((error, index) => (
+                    <p key={index} className="text-sm text-red-500 mt-1">
+                      {error}
+                    </p>
                   ))}
                 </div>
-              </div>
+                <div>
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profile.email}
+                    disabled
+                    className="bg-muted text-muted-foreground"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpf">CPF</Label>
+                  <PatternFormat
+                    id="cpf"
+                    format="###.###.###-##"
+                    value={profile.cpf || ''}
+                    onValueChange={(values) => {
+                      setProfile({ ...profile, cpf: values.value })
+                    }}
+                    className={cn(
+                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                      errors.cpf && "border-red-500"
+                    )}
+                    placeholder="000.000.000-00"
+                  />
+                  {errors.cpf?.map((error, index) => (
+                    <p key={index} className="text-sm text-red-500 mt-1">
+                      {error}
+                    </p>
+                  ))}
+                </div>
 
-              <div>
-                <Label>Cargo/Unidade Ativos</Label>
-                <div className="mt-2 space-y-2">
-                  {profile.active_positions.map((position) => (
-                    <div key={position.id} className="text-sm p-2 bg-muted rounded">
-                      <div className="font-medium text-foreground">{position.position_name}</div>
-                      <div className="text-muted-foreground">{position.organizational_unit_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Atribuído em: {new Date(position.assigned_at).toLocaleDateString('pt-BR')}
+                <div>
+                  <Label htmlFor="birth_date">Data de Nascimento</Label>
+                  <Input
+                    id="birth_date"
+                    type="date"
+                    value={profile.birth_date || ''}
+                    onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
+                    className={errors.birth_date ? 'border-red-500' : ''}
+                  />
+                  {errors.birth_date?.map((error, index) => (
+                    <p key={index} className="text-sm text-red-500 mt-1">
+                      {error}
+                    </p>
+                  ))}
+                </div>
+
+                <div>
+                  <Label htmlFor="phone">Telefone</Label>
+                  <PatternFormat
+                    id="phone"
+                    format="(##) #####-####"
+                    value={profile.phone || ''}
+                    onValueChange={(values) => {
+                      setProfile({ ...profile, phone: values.value })
+                    }}
+                    className={cn(
+                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                      errors.phone && "border-red-500"
+                    )}
+                    placeholder="(99) 99999-9999"
+                  />
+                  {errors.phone?.map((error, index) => (
+                    <p key={index} className="text-sm text-red-500 mt-1">
+                      {error}
+                    </p>
+                  ))}
+                </div>
+
+                <div>
+                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <PatternFormat
+                    id="whatsapp"
+                    format="(##) #####-####"
+                    value={profile.whatsapp || ''}
+                    onValueChange={(values) => {
+                      setProfile({ ...profile, whatsapp: values.value })
+                    }}
+                    className={cn(
+                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                      errors.whatsapp && "border-red-500"
+                    )}
+                    placeholder="(99) 99999-9999"
+                  />
+                  {errors.whatsapp?.map((error, index) => (
+                    <p key={index} className="text-sm text-red-500 mt-1">
+                      {error}
+                    </p>
+                  ))}
+                </div>
+
+                <div>
+                  <Label>Status</Label>
+                  <Input
+                    value={profile.active ? 'Ativo' : 'Inativo'}
+                    disabled
+                    className="bg-muted text-muted-foreground"
+                  />
+                </div>
+
+                <div>
+                  <Label>Funções Ativas</Label>
+                  <div className="mt-2 space-y-1">
+                    {profile.active_roles.map((role) => (
+                      <div key={role.id} className="text-sm text-foreground">
+                        {role.name}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {errors.general?.map((error, index) => (
-                <p key={index} className="text-sm text-red-500">
-                  {error}
-                </p>
-              ))}
+                <div>
+                  <Label>Cargo/Unidade Ativos</Label>
+                  <div className="mt-2 space-y-2">
+                    {profile.active_positions.map((position) => (
+                      <div key={position.id} className="text-sm p-2 bg-muted rounded">
+                        <div className="font-medium text-foreground">{position.position_name}</div>
+                        <div className="text-muted-foreground">{position.organizational_unit_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Atribuído em: {new Date(position.assigned_at).toLocaleDateString('pt-BR')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Salvando...' : 'Salvar Alterações'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                {errors.general?.map((error, index) => (
+                  <p key={index} className="text-sm text-red-500">
+                    {error}
+                  </p>
+                ))}
 
-        <Card className="order-2">
-          <CardHeader>
-            <CardTitle className="text-lg lg:text-xl">Alterar Senha</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <Label htmlFor="current_password">Senha Atual</Label>
-                <Input
-                  id="current_password"
-                  type="password"
-                  value={password.current_password}
-                  onChange={(e) => setPassword({ ...password, current_password: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="new_password">Nova Senha</Label>
-                <Input
-                  id="new_password"
-                  type="password"
-                  value={password.new_password}
-                  onChange={(e) => setPassword({ ...password, new_password: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="new_password_confirmation">Confirmar Nova Senha</Label>
-                <Input
-                  id="new_password_confirmation"
-                  type="password"
-                  value={password.new_password_confirmation}
-                  onChange={(e) => setPassword({ ...password, new_password_confirmation: e.target.value })}
-                />
-              </div>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Alterando...' : 'Alterar Senha'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="order-2">
+            <CardHeader>
+              <CardTitle className="text-lg lg:text-xl">Alterar Senha</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div>
+                  <Label htmlFor="current_password">Senha Atual</Label>
+                  <Input
+                    id="current_password"
+                    type="password"
+                    value={password.current_password}
+                    onChange={(e) => setPassword({ ...password, current_password: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new_password">Nova Senha</Label>
+                  <Input
+                    id="new_password"
+                    type="password"
+                    value={password.new_password}
+                    onChange={(e) => setPassword({ ...password, new_password: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new_password_confirmation">Confirmar Nova Senha</Label>
+                  <Input
+                    id="new_password_confirmation"
+                    type="password"
+                    value={password.new_password_confirmation}
+                    onChange={(e) => setPassword({ ...password, new_password_confirmation: e.target.value })}
+                  />
+                </div>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Alterando...' : 'Alterar Senha'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
