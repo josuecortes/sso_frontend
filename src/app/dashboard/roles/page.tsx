@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash, Shield, Users, Building2, MapPin, LayoutDashboard, Briefcase } from 'lucide-react';
+import { Plus, Pencil, Trash, Shield, Users, Building2, MapPin, LayoutDashboard, Briefcase, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -49,20 +49,46 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
 
+  // Novos estados para filtros, ordenação e paginação
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [sortBy, setSortBy] = useState('');
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(20);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    next_page: null,
+    prev_page: null,
+    total_pages: 1,
+    total_count: 0,
+  });
+
   useEffect(() => {
     fetchRoles();
-  }, []);
+    // eslint-disable-next-line
+  }, [search, sortBy, order, page]);
 
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/roles`, {
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('per_page', String(perPage));
+      if (sortBy) {
+        params.append('sort_by', sortBy);
+        params.append('order', order);
+      }
+      if (search) {
+        params.append('search', search);
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/roles?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-  
       if (!response.ok) throw new Error('Erro ao buscar roles');
       const data = await response.json();
       setRoles(data.roles);
+      setPagination(data.pagination);
     } catch (error) {
       toast.error('Erro ao carregar roles');
     }
@@ -166,6 +192,25 @@ export default function RolesPage() {
     }
   };
 
+  // Função para lidar com ordenação
+  const handleSort = (column: string, direction: 'asc' | 'desc') => {
+    setSortBy(column);
+    setOrder(direction);
+    setPage(1); // Volta para a primeira página ao ordenar
+  };
+
+  // Função para lidar com pesquisa
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
+    setPage(1); // Volta para a primeira página ao pesquisar
+  };
+
+  // Função para paginação
+  const goToPage = (newPage: number) => {
+    setPage(newPage);
+  };
+
   return (
     <div className="h-full flex flex-col pr-4 pl-4">
       <div className="border-b">
@@ -193,17 +238,52 @@ export default function RolesPage() {
         </div>
       </div>
 
+      {/* Campo de pesquisa */}
+      <form onSubmit={handleSearch} className="flex items-center gap-2 mt-6 mb-2 max-w-md mx-auto">
+        <Input
+          placeholder="Pesquisar permissão..."
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          className="flex-1"
+        />
+        <Button type="submit" variant="secondary">Filtrar</Button>
+      </form>
+
       {/* Conteúdo principal - Ajustado padding para mobile */}
-      <div className="flex-1 pt-8">
+      <div className="flex-1 pt-4">
         <Card className="border dark:border-gray-800">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="hidden md:table-cell">Descrição</TableHead>
-                  <TableHead className="hidden lg:table-cell">Criado em</TableHead>
-                  <TableHead className="hidden lg:table-cell">Atualizado</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Nome
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('name', 'asc')}><ArrowUp className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('name', 'desc')}><ArrowDown className="w-3 h-3" /></Button>
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <div className="flex items-center gap-1">
+                      Descrição
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('description', 'asc')}><ArrowUp className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('description', 'desc')}><ArrowDown className="w-3 h-3" /></Button>
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <div className="flex items-center gap-1">
+                      Criado em
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('created_at', 'asc')}><ArrowUp className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('created_at', 'desc')}><ArrowDown className="w-3 h-3" /></Button>
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <div className="flex items-center gap-1">
+                      Atualizado
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('updated_at', 'asc')}><ArrowUp className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => handleSort('updated_at', 'desc')}><ArrowDown className="w-3 h-3" /></Button>
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -251,6 +331,27 @@ export default function RolesPage() {
             </Table>
           </div>
         </Card>
+
+        {/* Paginador */}
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pagination.current_page === 1}
+            onClick={() => goToPage(pagination.current_page - 1)}
+          >
+            Anterior
+          </Button>
+          <span className="mx-2">Página {pagination.current_page} de {pagination.total_pages}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pagination.current_page === pagination.total_pages}
+            onClick={() => goToPage(pagination.current_page + 1)}
+          >
+            Próxima
+          </Button>
+        </div>
       </div>
 
       {/* Modal de criar/editar */}
